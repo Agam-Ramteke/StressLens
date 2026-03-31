@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Models & Data
+*.pkl
+*.joblib
+*.csv
+*.json
+!feature_names.json
+
+# Node/Mobile
+node_modules/
+dist/
+build/
+.expo/
+*.log
+
+# Workspace
+.vscode/
+.idea/
+.DS_Store

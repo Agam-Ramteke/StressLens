@@ -1,0 +1,17 @@
+# FastAPI & Uvicorn
+fastapi
+uvicorn[standard]
+pydantic
+python-dotenv
+
+# ML & Data Logic
+pandas
+numpy
+scikit-learn
+xgboost
+shap
+joblib
+
+# Utilities
+python-multipart
+httpx
