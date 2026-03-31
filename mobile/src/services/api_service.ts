@@ -1,9 +1,10 @@
 import axios from 'axios';
+import { Platform } from 'react-native';
 
-// IMPORTANT: Replace with your machine's local IP when testing on a physical device.
-// 'localhost' only works for web/emulator on the same machine.
-// Find it with: ipconfig (Windows) or ifconfig (Mac/Linux)
-const BASE_URL = 'http://10.0.2.2:8000/api/v1'; // Android emulator → host machine
+// Web uses localhost, Android emulator uses 10.0.2.2 to reach the host machine.
+// For a physical device, replace with your machine's LAN IP (run: ipconfig).
+const API_HOST = Platform.OS === 'web' ? 'localhost' : '10.0.2.2';
+const BASE_URL = `http://${API_HOST}:8000/api/v1`;
 
 export type DailyMetrics = {
   age: number;
