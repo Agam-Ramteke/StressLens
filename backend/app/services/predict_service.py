@@ -27,7 +27,7 @@ class PredictService:
         if model_dir is None:
             # Resolve relative to this file so it works wherever uvicorn is launched from
             here      = os.path.dirname(os.path.abspath(__file__))
-            model_dir = os.path.abspath(os.path.join(here, "..", "..", "..", "bin"))
+            model_dir = os.path.abspath(os.path.join(here, "..", "..", "bin"))
 
         self.model_dir = model_dir
         self._stress_model  = None

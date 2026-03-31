@@ -113,8 +113,8 @@ try:
         "feature_values": X_te[0].tolist(),
         "shap_stress":    sv_stress[0].tolist(),
         "shap_sleep":     sv_sleep[0].tolist(),
-        "base_stress":    float(explainer_stress.expected_value),
-        "base_sleep":     float(explainer_sleep.expected_value),
+        "base_stress":    float(np.array(explainer_stress.expected_value).flatten()[0]),
+        "base_sleep":     float(np.array(explainer_sleep.expected_value).flatten()[0]),
         "pred_stress":    float(rf_stress.predict(X_te[[0]])[0]),
         "pred_sleep":     float(rf_sleep.predict(X_te[[0]])[0]),
     }
