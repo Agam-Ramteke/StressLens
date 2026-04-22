@@ -1,41 +1,15 @@
-"""
-main.py  (fixed)
-================
-Changes:
-  - include_router() is now uncommented (was the root cause of 404s)
-  - Added GET /health endpoint — mobile app polls this before showing predictions
-  - Added startup lifespan event to pre-warm the model (avoids cold-start lag on first request)
-"""
-
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.predict_router import router as predict_router
-from app.services.predict_service import PredictService
-
-# Pre-load models at startup (avoids cold-start on first prediction request)
-_predict_service = PredictService()
+from app.model_service import DATASET_PATH, FEATURE_NAMES, ModelService
+from app.schemas import DailyMetrics, HealthResponse, MetadataResponse, PredictionResponse
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    if not _predict_service.models_loaded:
-        print("[Startup] WARNING: Models not loaded. Run train_model.py first.")
-    else:
-        print("[Startup] Models loaded successfully.")
-    yield
-    # Shutdown (nothing to clean up for RF models)
+VERSION = "2.0.0"
+model_service = ModelService()
 
+app = FastAPI(title="StressLens API", version=VERSION)
 
-app = FastAPI(
-    title="StressLens API",
-    version="1.1.0",
-    lifespan=lifespan,
-)
-
-# CORS — allow all origins in dev; lock this down in production
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -46,27 +20,47 @@ app.add_middleware(
 
 
 @app.get("/")
-async def root():
-    return {"message": "StressLens Prediction API v1.1.0"}
+def root() -> dict[str, str]:
+    return {"name": "StressLens API", "version": VERSION}
 
 
-@app.get("/health")
-async def health():
-    """
-    Mobile app polls this before showing the prediction UI.
-    Returns model status so the app can show a friendly 'model loading' state.
-    """
-    return {
-        "status":       "ok",
-        "model_loaded": _predict_service.models_loaded,
-        "version":      "1.1.0",
-    }
+@app.get("/health", response_model=HealthResponse)
+def health() -> HealthResponse:
+    return HealthResponse(
+        status="ok" if model_service.loaded else "needs_training",
+        model_loaded=model_service.loaded,
+        dataset_found=DATASET_PATH.exists(),
+        version=VERSION,
+    )
 
 
-# ── Routers ───────────────────────────────────────────────────────────────────
-app.include_router(predict_router, prefix="/api/v1")
+@app.get("/meta", response_model=MetadataResponse)
+def metadata() -> MetadataResponse:
+    metadata_payload = model_service.metadata or {}
+    return MetadataResponse(
+        fields={
+            "age": {"type": "integer", "min": 18, "max": 70},
+            "daily_screen_time_hours": {"type": "number", "min": 0, "max": 16},
+            "phone_usage_before_sleep_minutes": {"type": "integer", "min": 0, "max": 180},
+            "sleep_duration_hours": {"type": "number", "min": 3, "max": 12},
+            "caffeine_intake_cups": {"type": "integer", "min": 0, "max": 10},
+            "physical_activity_minutes": {"type": "integer", "min": 0, "max": 180},
+            "notifications_received_per_day": {"type": "integer", "min": 0, "max": 500},
+            "mental_fatigue_score": {"type": "number", "min": 1, "max": 10},
+        },
+        genders=metadata_payload.get("gender_classes", ["Female", "Male", "Other"]),
+        occupations=metadata_payload.get(
+            "occupation_classes",
+            ["Designer", "Doctor", "Freelancer", "Manager", "Researcher", "Software Engineer", "Student", "Teacher"],
+        ),
+        feature_names=metadata_payload.get("feature_names", FEATURE_NAMES),
+        model_metrics=metadata_payload.get("model_metrics"),
+    )
 
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+@app.post("/predict", response_model=PredictionResponse)
+def predict(metrics: DailyMetrics) -> PredictionResponse:
+    try:
+        return PredictionResponse(**model_service.predict(metrics))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc

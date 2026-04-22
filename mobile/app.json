@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "StressLens",
+    "slug": "stresslens",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.stresslens.app"
+    },
+    "android": {
+      "package": "com.stresslens.app",
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

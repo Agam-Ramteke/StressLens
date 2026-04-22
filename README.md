@@ -1,69 +1,97 @@
-# StressLens 🧠💤
+# StressLens
 
-Predictive Stress & Sleep Analytics with Explainable AI (XAI). StressLens uses Machine Learning (Random Forest) and SHAP to not only predict user wellness but also explain *why* scores are high or low, providing personalized recommendations.
+StressLens predicts daily stress and sleep quality from behavior metrics, then explains the most important drivers behind each score. The project has been rebuilt around the preserved dataset at `backend/data/sleep_mobile_stress_dataset_15000.csv`.
 
-## 🚀 Project Overview
+## What Is Included
 
-- **Core Engine**: `research/training/train_model.py` - Trains models and computes per-sample feature contributions.
-- **Backend (API)**: `backend/` - FastAPI powered service serving real-time predictions and explanations.
-- **Mobile (Client)**: `mobile/` - React Native application for user interaction and visualization.
-- **Explainable AI (XAI)**: Uses SHAP (SHapley Additive exPlanations) to identify contributing factors like excessive screen time or caffeine intake.
+- `backend/` - FastAPI service, model loader, validated schemas, and training scripts.
+- `backend/data/` - the preserved CSV dataset.
+- `mobile/` - Expo React Native app for entering habits and reading predictions.
+- `backend/artifacts/` - generated locally by training and ignored by git.
 
-## 📁 Directory Structure
+## Backend
 
-```
-StressLens/
-├── backend/                # Python API (FastAPI)
-│   ├── app/                # Application code
-│   │   ├── api/            # Route handlers (Stress/Sleep endpoints)
-│   │   ├── core/           # App config and security
-│   │   ├── models/         # Pydantic schemas for requests/responses
-│   │   ├── services/       # ML inference and SHAP processing
-│   │   └── main.py         # Entry point
-│   ├── bin/                # Trained .pkl models
-│   ├── data/               # Local datasets
-│   └── requirements.txt
-├── mobile/                 # React Native Application
-│   ├── src/
-│   │   ├── components/     # UI elements (Cards, Charts)
-│   │   ├── screens/        # Prediction Dashboard, Input forms
-│   │   ├── services/       # API integration
-│   │   └── theme/          # Custom styling (Glassmorphism inspired)
-│   └── assets/
-├── research/               # ML Development & Research
-│   ├── training/           # Training scripts and model experiments
-│   └── notebooks/          # Exploratory Data Analysis & Dashboard sketches
-└── README.md
+Install dependencies:
+
+```bash
+cd backend
+pip install -r requirements.txt
 ```
 
-## 🛠 Features
+Train the models from the preserved dataset:
 
-- **Personalized Predictions**: Real-time stress and sleep quality forecasting.
-- **Transparent AI**: Visual breakdown of factors influencing each prediction (powered by SHAP).
-- **Actionable Insights**: Recommendations generated based on feature importance.
-- **Dynamic Mobile App**: Sleek, responsive interface for tracking daily metrics.
+```bash
+python scripts/train_models.py
+```
 
-## 🚦 Getting Started
+Run the API:
 
-1.  **ML Setup**:
-    ```bash
-    cd research/training
-    pip install -r ../../backend/requirements.txt
-    python train_model.py
-    ```
-2.  **Run Backend**:
-    ```bash
-    cd backend
-    pip install -r requirements.txt
-    uvicorn app.main:app --reload
-    ```
-3.  **Run Mobile**:
-    ```bash
-    cd mobile
-    npm install
-    # for ios or android
-    npm start
-    ```
+```bash
+uvicorn app.main:app --reload
+```
 
----
-*Created as part of the StressLens vision.*
+Endpoints:
+
+- `GET /health`
+- `GET /meta`
+- `POST /predict`
+
+## Mobile App
+
+Install dependencies:
+
+```bash
+cd mobile
+npm install
+```
+
+Run the app:
+
+```bash
+npm run start
+```
+
+Useful launch commands:
+
+```bash
+npm run android
+npm run ios
+npm run web
+```
+
+Default backend URLs:
+
+- Android emulator: `http://10.0.2.2:8000`
+- iOS simulator and web: `http://localhost:8000`
+- Physical device: use your computer's LAN address in the app, for example `http://192.168.1.20:8000`
+
+## Verification
+
+Backend smoke test:
+
+```bash
+cd backend
+python scripts/smoke_test.py
+```
+
+Mobile typecheck:
+
+```bash
+cd mobile
+npm run typecheck
+```
+
+## Input Metrics
+
+The API accepts:
+
+- age
+- gender
+- occupation
+- daily screen time
+- phone use before sleep
+- sleep duration
+- caffeine intake
+- physical activity
+- notifications received per day
+- mental fatigue score

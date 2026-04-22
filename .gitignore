@@ -1,25 +1,28 @@
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
 venv/
 .env
+.pytest_cache/
 
-# Models & Data
-*.pkl
-*.joblib
-*.csv
-*.json
-!feature_names.json
+# Backend generated artifacts
+backend/artifacts/*.joblib
+backend/artifacts/*.pkl
+backend/artifacts/metadata.json
+backend/*.log
 
-# Node/Mobile
+# Node / Expo
 node_modules/
-dist/
-build/
-.expo/
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/expo-env.d.ts
+*.tsbuildinfo
 *.log
 
-# Workspace
+# Editors and OS files
 .vscode/
 .idea/
 .DS_Store
+Thumbs.db
