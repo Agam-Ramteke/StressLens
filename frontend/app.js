@@ -1,6 +1,6 @@
 /* StressLens — Desktop & Mobile Web App */
 
-const STORE = { url: "sl.url", form: "sl.form", theme: "sl.theme", profile: "sl.profile", history: "sl.history" };
+const STORE = { form: "sl.form", theme: "sl.theme", profile: "sl.profile", history: "sl.history" };
 
 // ── Fatigue Quiz ──
 const FATIGUE_QS = [
@@ -29,17 +29,100 @@ const SLIDER_GROUPS = {
 };
 const ALL_SLIDERS = Object.values(SLIDER_GROUPS).flat();
 
-const FACTOR_CTX = {
-  "Mental fatigue":{up:"is raising",down:"is helping lower"},"Screen time":{up:"is adding to",down:"is helping reduce"},
-  "Phone before bed":{up:"is worsening",down:"is helping improve"},"Sleep duration":{up:"is contributing to",down:"is helping with"},
-  "Caffeine":{up:"is increasing",down:"is not significantly affecting"},"Physical activity":{up:"is raising",down:"is helping reduce"},
-  "Notifications":{up:"is adding to",down:"is reducing"},"Age":{up:"is a factor in",down:"is a factor in"},
-  "Gender":{up:"is a factor in",down:"is a factor in"},"Occupation":{up:"is a factor in",down:"is a factor in"},
+// ── Feature Interpretation System ──
+// Layer 1: Feature classification (habit / state / demographic)
+// Layer 2: Per-model health-direction copy
+//   Stress model (higher = worse): positive SHAP → pushing stress UP → health-bad
+//   Sleep model  (higher = better): positive SHAP → pushing sleep UP → health-good
+//   So: isBad = (stress && positive) || (sleep && negative)
+// Layer 3: Copy is written from the USER's health perspective, not raw SHAP direction
+const FEATURE_META = {
+  "Mental fatigue": {
+    type: "state",
+    stress: {
+      bad:  "Your mental fatigue is elevated, contributing to higher stress",
+      ok:   "Your fatigue level is moderate — not driving up stress right now",
+    },
+    sleep: {
+      bad:  "Mental fatigue may be reducing your sleep quality",
+      ok:   "Your fatigue level isn't significantly disrupting sleep",
+    },
+  },
+  "Screen time": {
+    type: "habit",
+    stress: {
+      bad:  "High screen time is adding to your stress — consider cutting back",
+      ok:   "Your screen time isn't a major stress factor right now",
+    },
+    sleep: {
+      bad:  "Excessive screen time is hurting your sleep quality",
+      ok:   "Your screen habits aren't disrupting sleep",
+    },
+  },
+  "Phone before bed": {
+    type: "habit",
+    stress: {
+      bad:  "Late-night phone use is contributing to stress",
+      ok:   "Your pre-sleep phone habits look manageable",
+    },
+    sleep: {
+      bad:  "Phone before bed is disrupting your sleep",
+      ok:   "Your pre-sleep routine isn't hurting sleep quality",
+    },
+  },
+  "Sleep duration": {
+    type: "habit",
+    stress: {
+      bad:  "Insufficient sleep is raising your stress levels",
+      ok:   "Your sleep duration is helping keep stress lower",
+    },
+    sleep: {
+      bad:  "Your sleep duration needs improvement",
+      ok:   "You're getting a healthy amount of sleep",
+    },
+  },
+  "Caffeine": {
+    type: "habit",
+    stress: {
+      bad:  "Caffeine intake is increasing your stress — consider reducing",
+      ok:   "Your caffeine level isn't driving stress up",
+    },
+    sleep: {
+      bad:  "Caffeine is interfering with your sleep quality",
+      ok:   "Caffeine isn't disrupting your sleep",
+    },
+  },
+  "Physical activity": {
+    type: "habit",
+    stress: {
+      bad:  "Low activity levels may be contributing to higher stress",
+      ok:   "Your activity level is helping reduce stress",
+    },
+    sleep: {
+      bad:  "More physical activity could improve your sleep quality",
+      ok:   "Physical activity is supporting good sleep",
+    },
+  },
+  "Notifications": {
+    type: "habit",
+    stress: {
+      bad:  "High notification volume is adding to your stress",
+      ok:   "Notifications aren't a major stressor for you",
+    },
+    sleep: {
+      bad:  "Notification overload may be affecting your sleep",
+      ok:   "Notifications aren't impacting your sleep",
+    },
+  },
+  "Age":        { type: "demographic" },
+  "Gender":     { type: "demographic" },
+  "Occupation": { type: "demographic" },
 };
+
 
 // ── DOM ──
 const $ = s => document.querySelector(s);
-const form = $("#metricsForm"), apiUrl = $("#apiUrl"), statusDot = $("#statusDot");
+const form = $("#metricsForm"), statusDot = $("#statusDot");
 const btnAnalyze = $("#btnAnalyze"), formMsg = $("#formMsg");
 const welcomeState = $("#welcomeState"), resultsState = $("#resultsState");
 const fatigueInput = $("#fatigueScoreInput"), fatigueDisplay = $("#fatigueDisplay");
@@ -48,9 +131,8 @@ const settingsOverlay = $("#settingsOverlay");
 // ── Utility ──
 const fmt = (v,d=1) => Number(v).toFixed(d);
 const clamp = (v,lo,hi) => Math.min(hi,Math.max(lo,v));
-// When deployed, API is same origin (empty base). In dev, user overrides in settings.
-const isDeployed = location.hostname !== "localhost" && location.hostname !== "127.0.0.1";
-const baseUrl = () => isDeployed ? "" : (apiUrl?.value?.trim()?.replace(/\/+$/,"") || "http://localhost:8000");
+// Auto-detect: same-origin when deployed, localhost:8000 for local dev. Zero config.
+const baseUrl = () => (location.hostname === "localhost" || location.hostname === "127.0.0.1") ? "http://localhost:8000" : "";
 function msg(t,err=false){ formMsg.textContent=t; formMsg.classList.toggle("err",err); }
 
 // ── Date display ──
@@ -109,9 +191,9 @@ function readForm(){
     physical_activity_minutes:Number(d.get("physical_activity_minutes")), notifications_received_per_day:Number(d.get("notifications_received_per_day")),
     mental_fatigue_score:Number(d.get("mental_fatigue_score")) };
 }
-function saveForm(){ localStorage.setItem(STORE.url,apiUrl.value); localStorage.setItem(STORE.form,JSON.stringify(readForm())); }
+function saveForm(){ localStorage.setItem(STORE.form,JSON.stringify(readForm())); }
 function restoreForm(){
-  const u=localStorage.getItem(STORE.url); if(u) apiUrl.value=u;
+
   const r=localStorage.getItem(STORE.form); if(!r) return;
   try{
     const v=JSON.parse(r);
@@ -223,9 +305,9 @@ async function api(path,opts={}){
   return body;
 }
 async function checkHealth(){
-  statusDot.className="status-dot"; const cs=$("#connStatus"); if(cs) cs.textContent="Connecting…";
-  try{ const h=await api("/health"); statusDot.classList.add(h.model_loaded?"ok":"err"); if(cs) cs.textContent=h.model_loaded?`Connected — v${h.version}`:"Models not loaded"; localStorage.setItem(STORE.url,apiUrl.value);
-  }catch(e){ statusDot.classList.add("err"); if(cs) cs.textContent=e.message.slice(0,50); }
+  statusDot.className="status-dot";
+  try{ const h=await api("/health"); statusDot.classList.add(h.model_loaded?"ok":"err");
+  }catch{ statusDot.classList.add("err"); }
 }
 
 // ── Canvas: Gauge ──
@@ -273,17 +355,42 @@ function drawRadar(values){
 }
 
 // ── Factor cards ──
-function renderFactors(id,rows,type){
-  const el=$(`#${id}`); el.innerHTML="";
-  const top=rows.slice(0,5), maxA=Math.max(...top.map(r=>Math.abs(r.contribution)),.01);
-  for(const r of top){
-    const up=r.contribution>0, abs=Math.abs(r.contribution);
-    const str=abs/maxA>=.6?"strong":abs/maxA>=.25?"moderate":"minor";
-    const bad=(type==="stress"&&up)||(type==="sleep"&&!up);
-    const ctx=FACTOR_CTX[r.label]||{up:"is affecting",down:"is affecting"};
-    const desc=`${r.label} ${up?ctx.up:ctx.down} your ${type==="stress"?"stress":"sleep quality"}`;
-    const d=document.createElement("div"); d.className=`factor${bad?"":" helpful"}`;
-    d.innerHTML=`<span class="factor-arrow ${up?"up":"down"}">${up?"↑":"↓"}</span><div class="factor-body"><span class="factor-name">${r.label}</span><span class="factor-desc">${desc}</span></div><span class="factor-badge ${str}">${str==="strong"?"Strong":str==="moderate"?"Moderate":"Minor"}</span>`;
+function renderFactors(id, rows, model) {
+  const el = $(`#${id}`); el.innerHTML = "";
+  const top = rows.slice(0, 5);
+  const maxA = Math.max(...top.map(r => Math.abs(r.contribution)), 0.01);
+
+  for (const r of top) {
+    const meta = FEATURE_META[r.label];
+    const abs = Math.abs(r.contribution);
+    const strength = abs / maxA >= 0.6 ? "strong" : abs / maxA >= 0.25 ? "moderate" : "minor";
+
+    let desc, icon, cls, badge;
+
+    if (!meta || meta.type === "demographic") {
+      // Demographics: neutral presentation, no directional claim
+      desc = `Your ${r.label.toLowerCase()} profile has a ${strength} association with this score`;
+      icon = `<span class="factor-arrow profile">○</span>`;
+      cls = "factor profile-factor";
+      badge = "Profile";
+    } else {
+      // Health-direction: stress(+)=bad, sleep(-)=bad
+      const isBad = model === "stress" ? r.contribution > 0 : r.contribution < 0;
+      const modelCopy = meta[model];
+      desc = isBad ? modelCopy.bad : modelCopy.ok;
+
+      if (isBad) {
+        icon = `<span class="factor-arrow concern">⚠</span>`;
+        cls = "factor concern";
+      } else {
+        icon = `<span class="factor-arrow positive">✓</span>`;
+        cls = "factor positive";
+      }
+      badge = strength === "strong" ? "Strong" : strength === "moderate" ? "Moderate" : "Minor";
+    }
+
+    const d = document.createElement("div"); d.className = cls;
+    d.innerHTML = `${icon}<div class="factor-body"><span class="factor-name">${r.label}${meta?.type === "habit" ? ' <span class="factor-tag">Actionable</span>' : ""}</span><span class="factor-desc">${desc}</span></div><span class="factor-badge ${strength}">${badge}</span>`;
     el.appendChild(d);
   }
 }
@@ -325,10 +432,8 @@ async function runPrediction(e){
 // ── Init ──
 buildQuiz(); buildSliders(); restoreForm(); restoreTheme(); restoreProfile(); showDate(); checkHealth();
 
-$("#btnConnect").addEventListener("click",checkHealth);
 form.addEventListener("submit",runPrediction);
 $("#btnReset").addEventListener("click",resetDefaults);
-apiUrl.addEventListener("change",saveForm);
 form.addEventListener("change",saveForm);
 $("#btnSettings").addEventListener("click",openSettings);
 $("#closeSettings").addEventListener("click",closeSettings);
