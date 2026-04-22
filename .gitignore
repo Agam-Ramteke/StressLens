@@ -5,21 +5,15 @@ venv/
 .env
 .pytest_cache/
 
-# Backend generated artifacts
-backend/artifacts/*.joblib
-backend/artifacts/*.pkl
-backend/artifacts/metadata.json
+# Backend logs
 backend/*.log
 
-# Node / Expo
+# Node / legacy
 node_modules/
-mobile/node_modules/
-mobile/.expo/
-mobile/dist/
-mobile/web-build/
-mobile/expo-env.d.ts
+mobile/
+android-app/
+frontend/src/
 *.tsbuildinfo
-*.log
 
 # Editors and OS files
 .vscode/

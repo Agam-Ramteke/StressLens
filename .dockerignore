@@ -1,0 +1,31 @@
+# Version control noise
+.git
+.gitignore
+.idea
+.vscode
+__pycache__
+
+# Python environments
+venv/
+*.pyc
+*.pyo
+
+# Shelved/dead code
+android-app/
+mobile/
+frontend/src/
+frontend/node_modules/
+
+# Logs & temp
+*.log
+.env
+.pytest_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker meta
+Dockerfile
+docker-compose*.yml
+.dockerignore

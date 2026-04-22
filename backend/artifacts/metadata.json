@@ -1,0 +1,54 @@
+{
+  "trained_at": "2026-04-22T19:38:22.784191+00:00",
+  "dataset_rows": 15000,
+  "dataset_file": "sleep_mobile_stress_dataset_15000.csv",
+  "feature_names": [
+    "age",
+    "daily_screen_time_hours",
+    "phone_usage_before_sleep_minutes",
+    "sleep_duration_hours",
+    "caffeine_intake_cups",
+    "physical_activity_minutes",
+    "notifications_received_per_day",
+    "mental_fatigue_score",
+    "gender_enc",
+    "occupation_enc"
+  ],
+  "feature_means": [
+    38.48846666666667,
+    5.5015279999999995,
+    59.708933333333334,
+    6.509683333333333,
+    1.9988,
+    59.157133333333334,
+    160.89046666666667,
+    6.873008666666667,
+    0.5602666666666667,
+    3.4845333333333333
+  ],
+  "gender_classes": [
+    "Female",
+    "Male",
+    "Other"
+  ],
+  "occupation_classes": [
+    "Designer",
+    "Doctor",
+    "Freelancer",
+    "Manager",
+    "Researcher",
+    "Software Engineer",
+    "Student",
+    "Teacher"
+  ],
+  "model_metrics": {
+    "stress": {
+      "mae": 0.5177,
+      "r2": 0.9314
+    },
+    "sleep": {
+      "mae": 0.6906,
+      "r2": 0.7406
+    }
+  }
+}

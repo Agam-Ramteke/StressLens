@@ -1,5 +1,10 @@
-from fastapi import FastAPI, HTTPException
+import os
+
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from app.model_service import DATASET_PATH, FEATURE_NAMES, ModelService
 from app.schemas import DailyMetrics, HealthResponse, MetadataResponse, PredictionResponse
@@ -8,22 +13,35 @@ from app.schemas import DailyMetrics, HealthResponse, MetadataResponse, Predicti
 VERSION = "2.0.0"
 model_service = ModelService()
 
-app = FastAPI(title="StressLens API", version=VERSION)
+app = FastAPI(
+    title="StressLens API",
+    version=VERSION,
+    docs_url="/docs" if os.getenv("DEBUG") else None,       # hide Swagger in prod
+    redoc_url="/redoc" if os.getenv("DEBUG") else None,
+)
 
+# ── CORS — accept all in dev, restrict in prod ──
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Accept"],
 )
 
 
-@app.get("/")
-def root() -> dict[str, str]:
-    return {"name": "StressLens API", "version": VERSION}
+# ── Security headers middleware ──
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response: Response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 
+# ── API Routes ──
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     return HealthResponse(
@@ -64,3 +82,9 @@ def predict(metrics: DailyMetrics) -> PredictionResponse:
         return PredictionResponse(**model_service.predict(metrics))
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+# ── Serve static frontend (must be LAST so API routes take priority) ──
+_static_dir = Path(__file__).resolve().parents[1] / "static"
+if _static_dir.is_dir():
+    app.mount("/", StaticFiles(directory=str(_static_dir), html=True), name="static")

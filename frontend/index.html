@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StressLens — AI Stress & Sleep Analysis</title>
+  <meta name="description" content="Predict your daily stress level and sleep quality with AI-powered analysis.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="nav-brand">
+      <span class="brand-icon" aria-hidden="true">◎</span>
+      <span class="brand-text">Stress<span class="brand-accent">Lens</span></span>
+      <span class="status-dot" id="statusDot" title="Backend status"></span>
+    </div>
+    <div class="nav-actions">
+      <button type="button" id="btnExport" class="icon-btn" title="Export history" aria-label="Export history">⬇</button>
+      <button type="button" id="btnSettings" class="icon-btn" title="Settings" aria-label="Settings">⚙</button>
+    </div>
+  </nav>
+
+  <!-- Settings Drawer -->
+  <div id="settingsOverlay" class="overlay" hidden>
+    <div class="drawer">
+      <div class="drawer-head"><h2>Settings</h2><button id="closeSettings" class="icon-btn">✕</button></div>
+
+      <section class="drawer-section">
+        <h3>👤 Profile</h3>
+        <label class="field"><span class="field-lbl">Display Name</span><input type="text" id="profileName" placeholder="Your name"></label>
+        <div class="fields-row" style="margin-top:10px">
+          <label class="field"><span class="field-lbl">Age</span><input type="number" id="profileAge" min="18" max="70" step="1" value="28"></label>
+          <label class="field"><span class="field-lbl">Gender</span>
+            <select id="profileGender"><option>Female</option><option selected>Male</option><option>Other</option></select>
+          </label>
+        </div>
+        <label class="field" style="margin-top:8px"><span class="field-lbl">Occupation</span>
+          <select id="profileOccupation"><option>Designer</option><option>Doctor</option><option>Freelancer</option><option>Manager</option><option>Researcher</option><option selected>Software Engineer</option><option>Student</option><option>Teacher</option></select>
+        </label>
+      </section>
+
+      <section class="drawer-section">
+        <h3>🎨 Appearance</h3>
+        <div class="theme-row">
+          <span>Theme</span>
+          <div class="theme-toggle">
+            <button type="button" class="theme-btn" data-theme="dark">Dark</button>
+            <button type="button" class="theme-btn" data-theme="light">Light</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="drawer-section">
+        <h3>📦 Data</h3>
+        <p class="drawer-hint" id="historyCount">No history saved yet.</p>
+        <div class="drawer-btns">
+          <button type="button" id="btnExportSettings" class="btn-sm">Export ZIP</button>
+          <button type="button" id="btnClearHistory" class="btn-sm btn-danger">Clear History</button>
+        </div>
+      </section>
+
+      <section class="drawer-section">
+        <h3>🔗 Connection</h3>
+        <label class="field"><span class="field-lbl">Backend URL</span><input type="url" id="apiUrl" value="http://localhost:8000" autocomplete="off"></label>
+        <button type="button" id="btnConnect" class="btn-sm" style="margin-top:8px">Reconnect</button>
+        <p class="drawer-hint" id="connStatus">Checking…</p>
+      </section>
+    </div>
+  </div>
+
+  <main class="main">
+    <header class="hero">
+      <span class="hero-badge">AI-Powered Wellness Intelligence</span>
+      <h1>Understand your stress.<br>Optimize your sleep.</h1>
+      <p class="hero-sub">Enter your daily habits and let our model predict your stress, sleep quality, and what's driving each score.</p>
+    </header>
+
+    <div class="workspace">
+      <!-- LEFT — Form -->
+      <form id="metricsForm" class="panel form-panel" autocomplete="off">
+        <div class="panel-head">
+          <div><h2>Today's Metrics</h2><p class="panel-sub" id="dateDisplay"></p></div>
+          <button type="button" id="btnReset" class="btn-ghost">Reset</button>
+        </div>
+
+        <!-- Profile synced from Settings -->
+        <input type="hidden" name="age" id="formAge" value="28">
+        <input type="hidden" name="gender" id="formGender" value="Male">
+        <input type="hidden" name="occupation" id="formOccupation" value="Software Engineer">
+
+        <fieldset class="form-group">
+          <legend><span class="g-icon">😴</span> Sleep &amp; Recovery</legend>
+          <div id="sleepSliders" class="sliders"></div>
+        </fieldset>
+
+        <fieldset class="form-group">
+          <legend><span class="g-icon">🏃</span> Daily Habits</legend>
+          <div id="habitsSliders" class="sliders"></div>
+        </fieldset>
+
+        <fieldset class="form-group">
+          <legend><span class="g-icon">🧠</span> Mental Load</legend>
+          <p class="quiz-intro">Quick check — how are you feeling right now?</p>
+          <div id="fatigueQuiz" class="fatigue-quiz"></div>
+          <input type="hidden" name="mental_fatigue_score" id="fatigueScoreInput" value="5">
+          <div class="quiz-result">
+            <span class="quiz-result-label">Your fatigue level</span>
+            <span id="fatigueDisplay" class="quiz-result-score">5 / 10</span>
+          </div>
+          <div id="mentalSliders" class="sliders"></div>
+        </fieldset>
+
+        <button type="submit" id="btnAnalyze" class="btn-primary">
+          <span class="btn-label">Run Analysis</span><span class="btn-loader" hidden></span>
+        </button>
+        <p id="formMsg" class="form-msg" role="status"></p>
+      </form>
+
+      <!-- RIGHT — Results -->
+      <section class="results-panel" aria-label="Analysis results">
+        <div id="welcomeState" class="welcome">
+          <div class="welcome-glyph">🔬</div>
+          <h2>Ready to Analyze</h2>
+          <p>Fill in your metrics and press <strong>Run Analysis</strong> to see your personalized insights.</p>
+        </div>
+        <div id="resultsState" class="results" hidden>
+          <div class="gauge-row">
+            <article class="gauge-card"><canvas id="stressGauge" width="220" height="220"></canvas><p class="gauge-label">Stress Level</p><span id="stressBandLabel" class="gauge-band">—</span></article>
+            <article class="gauge-card"><canvas id="sleepGauge" width="220" height="220"></canvas><p class="gauge-label">Sleep Quality</p><span id="sleepBandLabel" class="gauge-band">—</span></article>
+          </div>
+          <div class="insight-row">
+            <article class="card wellness-card">
+              <h3>Wellness Index</h3>
+              <div class="wi-hero"><span id="wellnessNum" class="wi-num">—</span><span class="wi-denom">/ 100</span></div>
+              <p id="wellnessDesc" class="wi-desc"></p>
+              <div class="compare-grid" id="compareGrid"></div>
+            </article>
+            <article class="card radar-card">
+              <h3>Lifestyle Balance</h3>
+              <canvas id="radarCanvas" width="300" height="300"></canvas>
+            </article>
+          </div>
+          <article class="card impact-card">
+            <h3>What's Influencing Your Results</h3>
+            <p class="card-sub">Your daily habits ranked by how much they affect each score</p>
+            <div class="impact-sections">
+              <div><h4 class="section-head"><span class="sh-dot stress-dot"></span> Stress Factors</h4><div id="stressFactors" class="factors-list"></div></div>
+              <div><h4 class="section-head"><span class="sh-dot sleep-dot"></span> Sleep Factors</h4><div id="sleepFactors" class="factors-list"></div></div>
+            </div>
+          </article>
+          <article class="card recs-card">
+            <h3>💡 Recommendations</h3>
+            <div id="recsList" class="recs-list"></div>
+          </article>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer"><p>StressLens uses machine learning on lifestyle data. These are wellness estimates, not medical advice.</p></footer>
+  <script src="app.js"></script>
+</body>
+</html>

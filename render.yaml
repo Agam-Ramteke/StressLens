@@ -1,0 +1,14 @@
+# render.yaml — Render Blueprint (Infrastructure as Code)
+# Deploy: Connect your GitHub repo → Render auto-detects this file.
+
+services:
+  - type: web
+    name: stresslens
+    runtime: docker
+    plan: free                          # Free tier (512 MB RAM, spins down after 15 min idle)
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: ALLOWED_ORIGINS
+        value: "*"                      # Tighten after deploy: "https://stresslens.onrender.com"
