@@ -131,8 +131,14 @@ const settingsOverlay = $("#settingsOverlay");
 // ── Utility ──
 const fmt = (v,d=1) => Number(v).toFixed(d);
 const clamp = (v,lo,hi) => Math.min(hi,Math.max(lo,v));
-// Auto-detect: same-origin when deployed, localhost:8000 for local dev. Zero config.
-const baseUrl = () => (location.hostname === "localhost" || location.hostname === "127.0.0.1") ? "http://localhost:8000" : "";
+// Auto-detect backend URL. Zero config.
+// Port 5173 = standalone frontend dev server → API on port 8000.
+// Everything else (Docker :10000, Render, etc.) = same-origin.
+const baseUrl = () => {
+  const h = location.hostname;
+  if ((h === "localhost" || h === "127.0.0.1") && location.port === "5173") return "http://127.0.0.1:8000";
+  return "";
+};
 function msg(t,err=false){ formMsg.textContent=t; formMsg.classList.toggle("err",err); }
 
 // ── Date display ──
@@ -298,8 +304,9 @@ function closeSettings(){ settingsOverlay.hidden=true; saveProfile(); }
 
 // ── API ──
 async function api(path,opts={}){
-  const u=baseUrl(); if(!u) throw new Error("Set a backend URL first.");
-  const res=await fetch(`${u}${path}`,{...opts,headers:{Accept:"application/json",...(opts.headers||{})}});
+  const u=baseUrl();
+  const url = u ? `${u}${path}` : path;
+  const res=await fetch(url,{...opts,headers:{Accept:"application/json",...(opts.headers||{})}});
   const text=await res.text(); const body=text?JSON.parse(text):{};
   if(!res.ok){ const d=body.detail||res.statusText; throw new Error(typeof d==="string"?d:JSON.stringify(d)); }
   return body;
